@@ -9,7 +9,7 @@
 
 #import "DMLocationManager.h"
 
-#define kDMLocationManagerMaxCacheLife          (60*2)      // 2 MINUTES CACHE LIFETIME
+#define kDMLocationManagerMaxCacheLife          (60*10)      // 2 MINUTES CACHE LIFETIME
 
 @interface DMLocationManager() <CLLocationManagerDelegate> {
     NSOperationQueue*   networkQueue;
@@ -26,72 +26,93 @@
 @synthesize cachedLocation;
 @synthesize maxCacheAge;
 
-+ (DMLocationManager *) shared {
++ (DMLocationManager *) shared
+{
     static dispatch_once_t pred;
     static DMLocationManager *shared = nil;
     
     dispatch_once(&pred, ^{
         shared = [[DMLocationManager alloc] init];
     });
+    
     return shared;
 }
 
-- (id) init {
+- (id) init
+{
     self = [super init];
+    
     if (self) {
         networkQueue = [[NSOperationQueue alloc] init];
         [networkQueue setMaxConcurrentOperationCount:1];
         
         cachedLocation = nil;
         self.maxCacheAge = kDMLocationManagerMaxCacheLife;
+        
+        _authorizationRequestType = kDMLocationAuthorizationRequestInUse;
     }
+    
     return self;
 }
 
 - (DMLocationRequest *) obtainCurrentLocationAndReverse:(BOOL) reverseGeocoder
                                            withAccuracy:(CLLocationAccuracy) accuracy
                                                useCache:(BOOL) useCachedLocationIfAvailable
-                                           completition:(DMLocationRequestHandler) completition {
+                                           completition:(DMLocationRequestHandler) completition
+{
     DMLocationRequest *request = [DMLocationRequest currentLocation:reverseGeocoder
                                                            accuracy:accuracy
                                                        completition:completition];
+    
+    request.authorizationRequestType = _authorizationRequestType;
     request.useCachedLocation = useCachedLocationIfAvailable;
     [networkQueue addOperation:request];
+    
     return request;
 }
 
 - (DMLocationRequest *) obtainAddressFromLocation:(CLLocation *) location
-                                     completition:(DMLocationRequestReverseGeoHandler) completition {
+                                     completition:(DMLocationRequestReverseGeoHandler) completition
+{
     DMLocationRequest *request = [DMLocationRequest addressFromLocation:location completition:completition];
     [networkQueue addOperation:request];
+
     return request;
 }
 
 - (DMLocationRequest *) obtainCoordinatesFromAddress:(NSString *) address
-                                        completition:(DMLocationRequestReverseAddressCoordinates) completition {
+                                        completition:(DMLocationRequestReverseAddressCoordinates) completition
+{
     DMLocationRequest *request = [DMLocationRequest coordinatesFromAddress:address completition:completition];
     [networkQueue addOperation:request];
+    
     return request;
 }
 
-- (void) setCachedLocation:(CLLocation *)newCachedLocation {
+- (void) setCachedLocation:(CLLocation *)newCachedLocation
+{
     if ([self is:newCachedLocation moreAccurateThan:cachedLocation] || cachedLocation == nil)
         cachedLocation = newCachedLocation;
 }
 
-- (NSTimeInterval) cachedLocationAge {
+- (NSTimeInterval) cachedLocationAge
+{
     if (cachedLocation == nil) return NSUIntegerMax;
+    
     return [[NSDate date] timeIntervalSinceDate:cachedLocation.timestamp];
 }
 
-- (BOOL) is:(CLLocation *) locationA moreAccurateThan:(CLLocation *) locationB {
+- (BOOL) is:(CLLocation *) locationA moreAccurateThan:(CLLocation *) locationB
+{
     if (locationB == nil && locationA != nil)
         return YES;
+    
     return ([locationA.timestamp timeIntervalSinceNow] < [locationB.timestamp timeIntervalSinceNow] &&
             (locationA.horizontalAccuracy <= locationB.horizontalAccuracy && locationA.verticalAccuracy <= locationB.verticalAccuracy));
 }
 
-- (BOOL) queueSignificantLocationChangesMonitor:(DMLocationSignificantChangesHandler) updateBlock {
+- (BOOL) queueSignificantLocationChangesMonitor:(DMLocationSignificantChangesHandler) updateBlock
+{
     if (![CLLocationManager significantLocationChangeMonitoringAvailable] || updateBlock == nil)
         return NO;
     
@@ -101,22 +122,40 @@
         [sigLocChangesManager setDelegate:self];
     }
     [sigLocChangesObservers addObject:[updateBlock copy]];
-    [sigLocChangesManager startMonitoringSignificantLocationChanges];
+    
+    if (_authorizationRequestType == kDMLocationAuthorizationRequestInUse &&
+        [sigLocChangesManager respondsToSelector:@selector(requestWhenInUseAuthorization)])
+    {
+        [sigLocChangesManager requestWhenInUseAuthorization];
+    }
+    else
+    if (_authorizationRequestType == kDMLocationAuthorizationRequestAlways &&
+        [sigLocChangesManager respondsToSelector:@selector(requestAlwaysAuthorization)])
+    {
+        [sigLocChangesManager requestAlwaysAuthorization];
+    }
+    else
+    {
+        [sigLocChangesManager startMonitoringSignificantLocationChanges];
+    }
     
     return YES;
 }
 
-- (void) stopMonitoringAllSignificantLocationChanges {
+- (void) stopMonitoringAllSignificantLocationChanges
+{
     [sigLocChangesObservers removeAllObjects];
     [sigLocChangesManager setDelegate:nil];
     [sigLocChangesManager stopMonitoringSignificantLocationChanges];
     sigLocChangesManager = nil;
 }
 
+#pragma mark - CLLocationManager delegate
+
 - (void)locationManager:(CLLocationManager *)manager
 	didUpdateToLocation:(CLLocation *)newLocation
-		   fromLocation:(CLLocation *)oldLocation {
-    
+		   fromLocation:(CLLocation *)oldLocation
+{
     NSMutableIndexSet *unsubscribedObservers = [[NSMutableIndexSet alloc] init];
     __block BOOL needStopObservingMe = NO;
     [sigLocChangesObservers enumerateObjectsUsingBlock:^(DMLocationSignificantChangesHandler observer, NSUInteger idx, BOOL *stop) {
@@ -130,16 +169,33 @@
 }
 
 - (void)locationManager:(CLLocationManager *)manager
-       didFailWithError:(NSError *)error {
-    
+       didFailWithError:(NSError *)error
+{
     NSMutableIndexSet *unsubscribedObservers = [[NSMutableIndexSet alloc] init];
     [sigLocChangesObservers enumerateObjectsUsingBlock:^(DMLocationSignificantChangesHandler observer, NSUInteger idx, BOOL *stop) {
         if (!stop)
-            observer(nil,error,NO);
+            observer(nil,error,nil);
         else [unsubscribedObservers addIndex:idx];
     }];
     [sigLocChangesObservers removeObjectsAtIndexes:unsubscribedObservers];
     if (sigLocChangesObservers.count == 0) [self stopMonitoringAllSignificantLocationChanges];
+}
+
+- (void)locationManager:(CLLocationManager *)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status
+{
+    if (status == kCLAuthorizationStatusAuthorized ||
+        status == kCLAuthorizationStatusAuthorizedAlways ||
+        status == kCLAuthorizationStatusAuthorizedWhenInUse) {
+        
+        [manager startMonitoringSignificantLocationChanges];
+    }
+    else
+    if (status == kCLAuthorizationStatusDenied)
+    {
+        NSError *deniedError = [NSError errorWithDomain:kCLErrorDomain code:kCLErrorDenied userInfo:nil];
+        
+        [self locationManager:manager didFailWithError:deniedError];
+    }
 }
 
 @end

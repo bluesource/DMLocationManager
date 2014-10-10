@@ -10,6 +10,12 @@
 #import "DMOperation.h"
 #import <CoreLocation/CoreLocation.h>
 
+typedef NS_ENUM(NSUInteger, DMLocationAuthorizationRequestType)
+{
+    kDMLocationAuthorizationRequestInUse,
+    kDMLocationAuthorizationRequestAlways
+};
+
 // DMLocationRequest OPERATION TYPE
 enum {
     DMLocationRequestTypeLocationAndReverse     = 0,    // Get current location and [optionally] reverse location
@@ -38,6 +44,7 @@ typedef void(^DMLocationSignificantChangesHandler)(CLLocation* location,NSError 
                                                                             // (works only with operationType = DMLocationRequestTypeLocationAndReverse)
 @property (readonly)    CLLocation*                 currentLocation;        // Last given location (supposedly the most accurate?)
 
+@property (nonatomic, assign) DMLocationAuthorizationRequestType authorizationRequestType;
 
 // Create new request to obtain current location with a desidered accuracy.
 // (NOTE: You should not use this directly but only via DMLocationManager public methods)

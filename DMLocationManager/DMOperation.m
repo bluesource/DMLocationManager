@@ -90,7 +90,7 @@
                  onThread:[NSThread mainThread]
                withObject:nil
             waitUntilDone:NO
-                    modes:[NSSet setWithObject:NSDefaultRunLoopMode]];
+                    modes:[[NSSet setWithObject:NSDefaultRunLoopMode] allObjects]];
 }
 
 - (void)startOnRunLoopThread {
@@ -125,7 +125,7 @@
                      onThread:[NSThread mainThread]
                    withObject:nil
                 waitUntilDone:YES
-                        modes:[NSSet setWithObject:NSDefaultRunLoopMode]];
+                        modes:[[NSSet setWithObject:NSDefaultRunLoopMode] allObjects]];
 }
 
 - (void)cancelOnRunLoopThread {    

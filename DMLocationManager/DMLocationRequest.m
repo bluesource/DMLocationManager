@@ -60,6 +60,7 @@
         self.timeout = kDMLocManage_DefaultTimeout;
         currentLocation = nil;
         operationType = type;
+        _authorizationRequestType = kDMLocationAuthorizationRequestInUse;
     }
     return self;
 }
@@ -92,26 +93,56 @@
     return request;
 }
 
-- (void)operationDidStart {
-    if (operationType == DMLocationRequestTypeLocationAndReverse) {
+- (void)operationDidStart
+{
+    if (operationType == DMLocationRequestTypeLocationAndReverse)
+    {
         BOOL locationCacheIsValid = (self.useCachedLocation ? ([DMLocationManager shared].cachedLocationAge < [DMLocationManager shared].maxCacheAge) : NO);
+        
         if (locationCacheIsValid)
             currentLocation = [DMLocationManager shared].cachedLocation;
         
         BOOL locationIsAccurated = [self locationIsValidForAccuracy:self.accuracy];
-        if (!locationCacheIsValid || !locationIsAccurated) {
+        if (!locationCacheIsValid || !locationIsAccurated)
+        {
             locationManager = [[CLLocationManager alloc] init];
             [locationManager setDelegate:self];
-            [locationManager startUpdatingLocation];
-            timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(timeoutReached:) userInfo:nil repeats:NO];
-        } else {
+            
+            if (_authorizationRequestType == kDMLocationAuthorizationRequestInUse &&
+                [locationManager respondsToSelector:@selector(requestWhenInUseAuthorization)])
+            {
+                [locationManager requestWhenInUseAuthorization];
+            }
+            else
+            if (_authorizationRequestType == kDMLocationAuthorizationRequestAlways &&
+                [locationManager respondsToSelector:@selector(requestAlwaysAuthorization)])
+            {
+                [locationManager requestAlwaysAuthorization];
+            }
+            else
+            {
+                [locationManager startUpdatingLocation];
+                
+                timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(timeoutReached:) userInfo:nil repeats:NO];
+            }
+        }
+        else
+        {
             [self reverseLocation];
         }
-    } else if (operationType == DMLocationRequestTypeReverseLocation) {
+    }
+    else
+    if (operationType == DMLocationRequestTypeReverseLocation)
+    {
         [self reverseLocation];
-    } else if (operationType == DMLocationRequestTypeCoordinatesFromAddress) {
+    }
+    else
+    if (operationType == DMLocationRequestTypeCoordinatesFromAddress)
+    {
         [self obtainCoordinatesFromAddress];
-    } else {
+    }
+    else
+    {
         [self finishOperationWithError:[NSError errorWithDomain:@"Unknown operation code" code:0 userInfo:nil]];
     }
 }
@@ -201,6 +232,31 @@
                        }
                        [self finishOperationWithError:nil];
                    }];
+}
+
+- (void)locationManager:(CLLocationManager *)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status
+{
+    if (status == kCLAuthorizationStatusAuthorized ||
+        status == kCLAuthorizationStatusAuthorizedAlways ||
+        status == kCLAuthorizationStatusAuthorizedWhenInUse) {
+        
+        [manager startUpdatingLocation];
+        
+        timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(timeoutReached:) userInfo:nil repeats:NO];
+    }
+    else
+    if (status == kCLAuthorizationStatusDenied)
+    {
+        [self cancelLocationSearch];
+
+        NSError *deniedError = [NSError errorWithDomain:kCLErrorDomain code:kCLErrorDenied userInfo:nil];
+        if (completitionHandler != nil) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completitionHandler(currentLocation,nil,deniedError);
+            });
+        }
+        [self finishOperationWithError:deniedError];
+    }
 }
 
 - (void)locationManager:(CLLocationManager *)manager

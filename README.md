@@ -1,10 +1,10 @@
 # DMLocationManager: iOS CLLocationManager made easy
 
+Differences from the original repo: iOS 8 support, some bug fixes (c) progn
+Autor of original DMLocationManager: Daniele Margutti
+
 DMLocationManager made iOS's Location Manager easy to use. It supports blocks, reverse geocoding (from coordinates to address) and viceversa (from address string to it's GPS coordinates).
 It's all block based and uses NSOperationQueue to optimize multiple requests.
-
-Daniele Margutti, <http://www.danielemargutti.com>
-<me@danielemargutti.com>
 
 It requires iOS >= 5.
 
@@ -36,13 +36,6 @@ How to obtain GPS coordinates from address NSString:
                                                 completition:^(CLLocation *location, NSError *error) {
                                                 }];
 ```
-
-
-## Donations
-
-If you found this project useful, please donate.
-There’s no expected amount and I don’t require you to.
-[MAKE YOUR DONATION](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=GS3DBQ69ZBKWJ)
 
 ## License (MIT)
 

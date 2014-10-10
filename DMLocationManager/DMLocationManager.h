@@ -13,15 +13,15 @@
 #import "DMOperation.h"
 #import "DMLocationRequest.h"
 
-@interface DMLocationManager : NSObject {
+@interface DMLocationManager : NSObject
 
-}
+@property (readonly) NSOperationQueue *networkQueue;           // Main operation queue
+                                                               // (set a setMaxConcurrentOperationCount to limit concurrent operations. default is managed by the system)
+@property (nonatomic, retain) CLLocation *cachedLocation;         // Globally cached location (the most accurate one)
+@property (nonatomic, readonly) NSTimeInterval cachedLocationAge; // Age of cached location from now (in seconds)
+@property (nonatomic, assign) NSTimeInterval maxCacheAge;         // A cached value can be used only if it still valid in it's life interval
 
-@property (readonly)            NSOperationQueue*       networkQueue;           // Main operation queue
-                                                                                // (set a setMaxConcurrentOperationCount to limit concurrent operations. default is managed by the system)
-@property (nonatomic,retain)    CLLocation*             cachedLocation;         // Globally cached location (the most accurate one)
-@property (nonatomic,readonly)  NSTimeInterval          cachedLocationAge;      // Age of cached location from now (in seconds)
-@property (nonatomic,assign)    NSTimeInterval          maxCacheAge;            // A cached value can be used only if it still valid in it's life interval
+@property (nonatomic, assign) DMLocationAuthorizationRequestType authorizationRequestType;// using in iOS >=8, default kDMLocationManagerAuthorizationRequestInUse
 
 // Singleton
 + (DMLocationManager *) shared;
