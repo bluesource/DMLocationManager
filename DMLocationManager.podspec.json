@@ -1,9 +1,9 @@
 {
   "name": "DMLocationManager",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "Apache License, Version 2.0",
   "summary": "Convenient CLLocationManager wrapper. Control location caching, cache age and accuracy.",
-  "homepage": "https://github.com/martinstolz/DMLocationManager",
+  "homepage": "https://github.com/bluesource/DMLocationManager",
   "authors": {
     "Martin Stolz": "martin.stolz@devmob.de"
   },
@@ -12,7 +12,7 @@
     "ios": null
   },
   "source": {
-    "git": "https://github.com/martinstolz/DMLocationManager.git",
+    "git": "https://github.com/bluesource/DMLocationManager.git",
     "tag": "1.1.0"
   },
   "source_files": "DMLocationManager/*.{h,m}",
