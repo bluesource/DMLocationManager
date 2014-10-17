@@ -15,6 +15,7 @@
     "git": "https://github.com/martinstolz/DMLocationManager.git",
     "tag": "1.1.0"
   },
-  "source_files": "*.{h,m}",
+  "source_files": "DMLocationManager/*.{h,m}",
+  "resource" : "DMLocationManager/DMLocationManager.strings",
   "requires_arc": false
 }
