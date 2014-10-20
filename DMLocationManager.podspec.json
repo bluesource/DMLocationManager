@@ -17,5 +17,5 @@
   },
   "source_files": "DMLocationManager/*.{h,m}",
   "resource" : "DMLocationManager/DMLocationManager.strings",
-  "requires_arc": false
+  "requires_arc": true
 }
